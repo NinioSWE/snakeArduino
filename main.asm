@@ -30,7 +30,7 @@ start:
 /* t ex
 .EQU NUM_COLUMNS   = 8
 .EQU MAX_LENGTH    = 25
-…
+â€¦
 */
 
 //[Datasegmentet]
@@ -38,8 +38,6 @@ start:
 Matrix:	.BYTE 8
 Length: .BYTE 1
 BodyPositions:	.BYTE 65
-// [a,b][b,c][d,e][f,g] för varje byte där [a,b] -> DIR och index([a,b]) -> pos
-// två byte är en rad i Matrix
 
 //[Kodsegmentet]
 /* t ex */
@@ -62,7 +60,7 @@ init:
 	 ldi YL, low(length)
 	 st y, rtemp
 
-     // Sätt stackpekaren till högsta minnesadressen
+     // SÃ¤tt stackpekaren till hÃ¶gsta minnesadressen
      ldi rTemp, HIGH(RAMEND)
      out SPH, rTemp
      ldi rTemp, LOW(RAMEND)
@@ -419,7 +417,7 @@ moveHead:
 
 	ld	 rTemp, Y
 	//x += dx 
-	//konstant åt höger dx(test)
+	//konstant Ã¥t hÃ¶ger dx(test)
 	add rtemp2, rtemp4
 	andi rtemp2, 0b0000_0111
 
@@ -432,7 +430,7 @@ moveHead:
 	add rtemp3, rtemp2
 	st  X, rtemp3
 
-	//rita ut nya position på matrisen
+	//rita ut nya position pÃ¥ matrisen
 
 	ldi YH, HIGH(matrix)
 	ldi YL, LOW(matrix)
@@ -471,7 +469,7 @@ ret
 
 
 getDirection:
-//får inte ändra på rtemp2 och rtemp3 ska även returnera rtemp4(x) och rtemp5(y)
+//fÃ¥r inte Ã¤ndra pÃ¥ rtemp2 och rtemp3 ska Ã¤ven returnera rtemp4(x) och rtemp5(y)
 	ldi rtemp4, 2
 	sub rRandom, rtemp4
 
