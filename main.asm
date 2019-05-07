@@ -49,26 +49,26 @@ BodyPositions:	.BYTE 65
 .ORG INT_VECTORS_SIZE
 init:
 
-	 //setting start direction to left x = -1, y = 0
+	 //setting start direction to left (x = -1, y = 0)
 	 ldi rtemp, -1
 	 mov rolddirx, rtemp
  	 ldi rtemp, 0
 	 mov rolddiry, rtemp
 
 
-
+	 //setting start length to 3 
 	 ldi rtemp, 3
 	 ldi YH, high(length)
 	 ldi YL, low(length)
 	 st y, rtemp
 
-     // Sätt stackpekaren till högsta minnesadressen
+     // Setting stack pointer
      ldi rTemp, HIGH(RAMEND)
      out SPH, rTemp
      ldi rTemp, LOW(RAMEND)
      out SPL, rTemp
 
-	 //startup input axises
+	 //startup input axises (joystick) 
     lds  rTemp, ADMUX
     andi rTemp, 0b0001_1111
     ori  rTemp, 0b0110_0000
@@ -79,6 +79,7 @@ init:
     ori  rTemp,  0b1000_0111
     sts  ADCSRA, rTemp
 
+	//Sets the bodyPositions list to 0 
 	ldi YH, HIGH(BodyPositions)
 	ldi YL, LOW(BodyPositions)
 	ldi rTemp2, 64
@@ -91,6 +92,7 @@ init:
 	brne  loop
 
 	//           00_YYY_XXX
+	//           sets startposition to 36
 	ldi rTemp, 0b00_100_100 
 	ldi YL, LOW(BodyPositions)
 	st Y, rTemp
@@ -107,11 +109,11 @@ init:
 	in  rTemp , DDRD
 	ori rTemp ,0b1111_1100
 	out	DDRD, rTemp
-
+	//set portC for out put no override..
 	in  rTemp , DDRC
 	ori rTemp ,0b0000_1111
 	out	DDRC, rTemp
-	
+	//set portB for out put no override..
 	in  rTemp , DDRB
 	ori rTemp ,0b0011_1111
 	out	DDRB, rTemp
@@ -128,17 +130,19 @@ init:
 	std	Y+5, rTemp
 	std	Y+6, rTemp
 	std	Y+7, rTemp
-
+	
+	//create an Apple
     call createApple
 
 gameLoop:
+	// add rGlC with 1
 	subi rGLC, -1
 	call getDirection
 	cpi rGLC, 0b1111_1111
 
 
 	brne callDrawCall
-
+	//if rGLC == 255 run game logic
 	//call getInput
 	/*ldi YH, HIGH(Matrix)
 	ldi YL, LOW(Matrix)
@@ -472,9 +476,11 @@ ret
 
 getDirection:
 //får inte ändra på rtemp2 och rtemp3 ska även returnera rtemp4(x) och rtemp5(y)
+	//subtract 2 from rRandom to make it "feel more random"
 	ldi rtemp4, 2
 	sub rRandom, rtemp4
 
+	
 	ldi rtemp5, 0
 	ldi rtemp4, 0
 	up:
@@ -502,25 +508,31 @@ getDirection:
 	ldi rtemp4, 1
 	jmp returnDirection
 
+	//will not work with most analog sticks.
+	//change to range 100-140
+	//Make more random "feel"
 	normalCase:
 	cpi rInX, 127
 	breq newNormalCase
 	cpi rInY, 138
 	breq newNormalCase
 	add rRandom, rInX
-			com rRandom
+	com rRandom
 	lsr rRandom
 	add rRandom, rInY
 	lsr rRandom
 	lsr rRandom
 	newNormalCase:
 
+	//keep moving in the same direction
 	mov rtemp4, rolddirx
 	mov rtemp5, rolddiry
 	jmp rt
 
 	returnDirection:
 
+
+	//store input in rolddirx, rolddiry
 	neg rolddirx
 	neg rolddiry
 	cp rolddirx, rtemp4
@@ -584,39 +596,48 @@ checkCollision:
 ret
 
 createApple:
-
+	//copy rRandom to rApplePos and mask out the first 6 bits so we get a value between 0-63
 	mov rApplePos, rRandom 
 	andi rApplePos, 0b0011_1111
+	
+	//set Z to as a pointer to address length
 	ldi ZH, HIGH(length)
 	ldi ZL, LOW(length)
-
+	//set Y to as a pointer to address bodypositions
 	ldi YH, HIGH(bodypositions)
 	ldi YL, LOW(bodypositions)
 
 	CheckCollisionAgain:
 	ldi YL, LOW(bodypositions)
 	
+	//rTemp2 = length
 	ld rtemp2, Z
 	//forloop
 	PositionLoop:
+	//rtemp = current bodyposition
 	ld rtemp, Y
-
+	// check if rtemp2 == 0
 	cpi rtemp2, 0
 	breq PositionLoopDone
 	
+	// rApplePos != rtemp (check if applePosition is the same as the current bodyPart)
 	cp rApplePos, rtemp
 	brne reloop
+	//rApplePos == bodyPart.Position add 1 to rApplePos and mask out the first 6 bits and check collision again 
 	subi rApplePos,-1
 	andi rApplePos ,0b0011_1111
 	jmp CheckCollisionAgain
+	// if collision did not occur
 	reLoop:
+	//add 1 to YLow so that it points to the next body part in our list(bodypositions) 
+	//subtract rtemp2 with 1 and jump to PositionLoop again
 	subi yl, -1
 	subi rtemp2,1
 	jmp PositionLoop
 	PositionLoopDone:
 	//forloopdone
 
-	//rtemp =x rtemp2 = y
+	//rtemp = x rtemp2 = y
 	mov rtemp, rApplePos
 	mov rtemp2, rApplePos
 	andi  rtemp, 0b0000_0111
@@ -624,13 +645,16 @@ createApple:
 	lsr rtemp2
 	lsr rtemp2
 	lsr rtemp2
-
+	
+	//set Z as a pointer to Matrix and add rtemp2(y) so that we get the right row byte
 	ldi ZH, HIGH(Matrix)
 	ldi ZL, LOW(Matrix)
 	add ZL, rtemp2
 	ld rtemp4, Z
-	//rightrow in rtemp4
+	//rightrow byte in rtemp4
 	
+	// rtemp3 = x
+	// right shift (0b1000_0000) x times and set bit for apple to 1 with out overriding the other bits
 	mov rtemp3,rtemp
 	ldi rtemp2, 0b1000_0000
 	shiftloop4:
@@ -641,11 +665,14 @@ createApple:
 	jmp shiftloop4
 	doneWithMask4:
 	//bit mask for x in matrix row temp2
+	// this might be unnecessary
 	com rtemp2
 	and rtemp4,rtemp2
 	com rtemp2
+	
 	or rtemp4,rtemp2
 
+	//store the new byte in Z(Matrix)
 	st Z, rtemp4
 
 ret
