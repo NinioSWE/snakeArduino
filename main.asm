@@ -48,6 +48,8 @@ BodyPositions:	.BYTE 65
 //... fler interrupts
 .ORG INT_VECTORS_SIZE
 init:
+
+	 //setting start direction to left x = -1, y = 0
 	 ldi rtemp, -1
 	 mov rolddirx, rtemp
  	 ldi rtemp, 0
