@@ -309,7 +309,8 @@ getInput:
 	lds rTemp, ADCSRA
     sbrc rTemp, ADSC
     jmp waituntil
-
+    
+    //store analog-y value in rInY
     lds rInY, ADCH
 
     //setup for x
@@ -328,6 +329,7 @@ getInput:
     sbrc rTemp,ADSC
     jmp waituntil2
 
+    //store analog-x value in rInX
     lds rInX, ADCH
 ret
 
@@ -337,7 +339,8 @@ moveHead:
 	ldi ZL, LOW(length)
 	ld rTemp, Z
 	mov rtemp6, rTemp
-
+	// "important bytes" depends on the length of the snake
+	// move all "important bytes" up one position in memory
 	ldi YH, HIGH(bodypositions)
 	ldi YL, LOW(bodypositions) 
 	add YL, rTemp
@@ -355,7 +358,7 @@ moveHead:
 	jmp loopagain
 	doneloopagain:
 
-	//turn of tail
+	//turn off tail
 	ldi ZH, HIGH(bodypositions)
 	ldi ZL, LOW(bodypositions)
 	add ZL , rtemp6
@@ -480,9 +483,11 @@ getDirection:
 	ldi rtemp4, 2
 	sub rRandom, rtemp4
 
-	
+	//reset dirX and dirY to 0 
 	ldi rtemp5, 0
 	ldi rtemp4, 0
+	//set rtemp5 to -1 or 1 if direction was up or down
+	//set rtemp4 to -1 or 1 if direction was left or right
 	up:
 	cpi rInY, 240
 	brlo down 
@@ -533,6 +538,7 @@ getDirection:
 
 
 	//store input in rolddirx, rolddiry
+	//
 	neg rolddirx
 	neg rolddiry
 	cp rolddirx, rtemp4
@@ -540,6 +546,8 @@ getDirection:
 	cp rolddiry, rtemp5
 	brne retdir
 
+	//if direction was not allowed (example going from right to left)
+	// use old direction
 	neg rolddirx
 	mov rtemp4, rolddirx
 	neg rolddirx
@@ -549,9 +557,11 @@ getDirection:
 	neg rolddiry
 
 	retdir:
+	//make rolddirx and rolddiry to its "normal" value
 	neg rolddirx
 	neg rolddiry
-
+	
+	//store direction in rolddirx, rolddiry
 	mov rolddirx, rtemp4
 	mov rolddiry, rtemp5
 
@@ -561,6 +571,7 @@ ret
 
 checkCollision:
 	//rtemp2 = (length - 1)
+	// Z is a pointer to length
 	ldi ZH, HIGH(length)
 	ldi ZL, LOW(length)
 	ld rtemp4, Z
@@ -578,17 +589,22 @@ checkCollision:
 	cpi rtemp2, 0
 	breq noCollision
 	subi yl, -1
+	//rtemp3 is position of the current body in the loop
 	ld rtemp3, Y
+	//if head position is the same as current bodyposition then the game is over
 	cp rtemp3, rtemp
 	breq yesCollision
+	//subtract 1 from rtemp2 and loop next bodypart
 	subi rtemp2, 1
 	jmp loopColision
 	yesCollision:
+	//restart the game
 	jmp init
 	noCollision:
-
+	//check if head is colliding with an apple
 	cp rtemp, rApplePos
 	brne doneCollision
+	//if collision with apple add 1 to length
 	subi rtemp4, -1
 	st Z, rtemp4
 	call createApple
