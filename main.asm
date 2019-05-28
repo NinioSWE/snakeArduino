@@ -135,19 +135,16 @@ init:
     call createApple
 
 gameLoop:
+	//rGLC keeps track of how many drawcalls need to run for a single game update
+
 	// add rGlC with 1
 	subi rGLC, -1
 	call getDirection
 	cpi rGLC, 0b1111_1111
-
-
 	brne callDrawCall
+	
 	//if rGLC == 255 run game logic
 	//call getInput
-	/*ldi YH, HIGH(Matrix)
-	ldi YL, LOW(Matrix)
-	st	Y, rInY
-	std	Y+1, rInX*/
 	call getInput
 	call moveHead
 	call checkCollision
@@ -158,7 +155,8 @@ gameLoop:
 jmp gameLoop
 
 drawCall:
-	//Set srow[t3] to 1
+
+// Y = pointer to Matrix
 ldi YH, HIGH(Matrix)
 ldi YL, LOW(Matrix)
 
@@ -166,78 +164,107 @@ ldi YL, LOW(Matrix)
 ldi rTemp4, 0b1
 
 drawRows:
-	// set current row to 1 and stop all other rows
+	//Set ports to correct values for drawing current row
+	//PortB is going to be set to rTemp2
+	//PortC is going to be set to rTemp3
+	//PortD is going to be set to rTemp6
+	
+	//Set rTemp3 to correct PortC value for row output
+	//rTemp = rTemp4 for the first four rows, else 0
 	mov rTemp, rTemp4
-	//Take first 4 from bitmask
 	andi rTemp, 0b0000_1111
 
+	//Save bits were not going to change from PortC in rTemp2
 	in rTemp2, PORTC
 	andi rTemp2, 0b1111_0000
-	//keep last 4 in PortC
+	
+	//If were on the first four rows, set the correct bit (rtemp4) to 1
 	or rTemp2, rTemp
 	mov rTemp3, rTemp2
-
+	
+	// rtemp4 -> 0b r7 r6 r5 r4 r3 r2 r1 r0
+	// rtemp <-  0b 0  0  r7 r6 r5 r4 0  0 
+	// Shift rowbitmask so that rowbit for row 5-8 is at bit 3-6 in 
 	mov rTemp, rTemp4
 	lsr rTemp
 	lsr rTemp
-	andi rTemp, 0b0011_1100
+	andi rTemp, 0b0011_1100	
+	
+	//Save bits that shouldnt change from port D
 	in rTemp2, PORTD
 	andi rTemp2, 0b1100_0011
+	//Combine them with correct rowbits
 	or rTemp2, rTemp
 	mov rTemp6, rTemp2
 
-	//sets all columns
+	//sets column data (rtemp6 for D, rTemp2 for B)
 	call drawColumns
 
+	//turn on the lights for this row
 	out PORTB, rTemp2
 	out PORTC, rTemp3
 	out PORTD, rTemp6
 
 	call wait
 
+	//turn off the lights for this row
 	ldi rTemp2, 0
 	out PORTB, rTemp2
 	out PORTC, rTemp2
 	out PORTD, rTemp2
 
-
+	//move to next row unless all are drawn
 	lsl rTemp4
 	cpi rTemp4, 0
 	brne drawRows
 ret
 
 wait:
+	//wait for 128 timers to pass
 	ldi rTemp2, 128
 waitLoop:
+	//reset timer
 	ldi rTemp, 0
 	out TCNT0, rTemp
+	//enable global interrupt
 	sei
+	//wait for the timer interrupt
 	sleep
+	//reduce how many timers to wait for
 	subi rTemp2, 1
+	//check if done
+	//the cpi is probably not necessary, as subi rTemp2, 1 should set the same flag values 
 	cpi rTemp2, 0
 	brne waitLoop
 ret
 
 drawColumns:
-//D columns
+	//D columns
+	//rtemp2 = bits for the two leftmost lamps
 	ld	rTemp2, Y
 	andi rTemp2, 0b1100_0000
 
+	//load bits that we dont change from portD
 	in  rTemp, portd
 	andi  rTemp, 0b0011_1111
+	
+	//change the order so that the last lamp is the second last bit
 	mov rTemp5, rTemp2
 	andi rTemp5, 0b1000_0000
 	andi rTemp2, 0b0100_0000
 	lsr rTemp5
 	lsl rTemp2
 	or rTemp2, rTemp5
+	
+	// set rTemp6 to the correct bits (PortD output)
 	or rTemp2, rTemp
 	or rTemp6, rTemp2
-//B columns
-
+	
+	//B columns
+	//load the lights for the row and move Y pointer to the next Row
 	ld	rTemp2, Y+
-
-
+	
+	//interchange bit 6 with bit 1
 	mov rTemp5, rTemp2
 	mov rTemp, rTemp2
 	andi rTemp5, 0b0000_0001
@@ -259,7 +286,7 @@ drawColumns:
 	andi rTemp2, 0b1111_1110
 	or rTemp2, rTemp
 
-
+	//interchange bit 5 with bit 2
 	mov rTemp5, rTemp2
 	mov rTemp, rTemp2
 	andi rTemp5, 0b0000_0010
@@ -277,6 +304,7 @@ drawColumns:
 	andi rTemp2, 0b1111_1101
 	or rTemp2, rTemp
 
+	//interchange bit 4 with bit 3
 	mov rTemp5, rTemp2
 	mov rTemp, rTemp2
 	andi rTemp5, 0b0000_0100
@@ -288,8 +316,8 @@ drawColumns:
 	or rTemp2, rTemp5
 	andi rTemp2, 0b1111_1011
 	or rTemp2, rTemp
-
-
+	
+	// rTemp2 is the correct bits (PortB output)
 ret
 
 	
