@@ -359,11 +359,13 @@ moveHead:
 	doneloopagain:
 
 	//turn off tail
+	//get last position in the bodypositions list and store it in rtemp3
 	ldi ZH, HIGH(bodypositions)
 	ldi ZL, LOW(bodypositions)
 	add ZL , rtemp6
 	ld rtemp3, Z
-
+	
+	//mask out the x and y value of the last position in the bodypositions list and store it in rtemp2(x) and rtemp3(y).
 	mov rtemp2, rtemp3
 	andi rtemp2, 0b0000_0111
 	andi rtemp3, 0b0011_1000
@@ -372,13 +374,14 @@ moveHead:
 	lsr rtemp3
 
 
-	//load matrix with right Y
+	//load matrix with correct y value and store the byte in rtemp
 	ldi YH, HIGH(Matrix)
 	ldi YL, LOW(Matrix)
 	add YL, rtemp3
 	ld rtemp, y
 
 	//get bitmask for x in matrixrow 
+	//right shift as many times as the x value
 	mov rtemp3,rtemp2
 	ldi rtemp2, 0b1000_0000
 	shiftloop2:
@@ -388,10 +391,10 @@ moveHead:
 	subi rtemp3,1
 	jmp shiftloop2
 	doneWithMask2:
-	//bit mask for x in matrix row temp2
+	//turn off the bit that was the overflowing tail
 	com rtemp2
 	and rtemp,rtemp2
-
+	//store the byte in matrix
 	st Y, rTemp
 
 
@@ -400,7 +403,7 @@ moveHead:
 
 
 
-	//headposition in bodyposition + 1
+	//oldheadposition in bodyposition + 1
 	ldi YH, HIGH(bodypositions)
 	ldi YL, LOW(bodypositions)
 	ldd rtemp3, Y+1
@@ -410,43 +413,50 @@ moveHead:
 	lsr rtemp3
 	lsr rtemp3
 	lsr rtemp3
-	//rTemp2 = head x
-	//rtemp3 = head y
+	//rTemp2 = oldhead x
+	//rtemp3 = oldead y
 
 	call getDirection
 	//direction in rtemp4(x) and rtemp5(y)
 
-	//add dir y to rtemp3(y)
+	//add direction y to old head position(y) to get the new head position(y)
 	add rtemp3, rtemp5
 	andi rtemp3, 0b0000_0111
-
+	//get the row thats gonna have the new head
 	ldi YH, HIGH(Matrix)
 	ldi YL, LOW(Matrix)
 	add YL, rtemp3
-
+	//matrix byte stored in rtemp
 	ld	 rTemp, Y
-	//x += dx 
-	//konstant åt höger dx(test)
+	
+	//add direction x to old head position(x) to get the new head position(x)
 	add rtemp2, rtemp4
 	andi rtemp2, 0b0000_0111
 
-	ldi XH, HIGH(bodypositions)
-	ldi XL, LOW(bodypositions)
+	//set rtemp3 to xy position (in this way 0b00yyyxxx)
+	// rtemp3 = y(0b00000yyy) and rtemp2 = x(0b00000xxx)
 	mov rtemp4, rtemp3 
 	lsl rtemp3
 	lsl rtemp3
 	lsl rtemp3
 	add rtemp3, rtemp2
+	
+	//store the new headposition in bodypositions
+	ldi XH, HIGH(bodypositions)
+	ldi XL, LOW(bodypositions)
 	st  X, rtemp3
 
-	//rita ut nya position på matrisen
-
+	//draw new head in matrix
+	// rtemp4 = y(0b00000yyy) 
+	// rtemp2 = x(0b00000xxx) 
+	//get the correct row for the new head and store the byte in rtemp
 	ldi YH, HIGH(matrix)
 	ldi YL, LOW(matrix)
 	add yl, rtemp4
 	ld rtemp, Y
 
 	//get bitmask for x in matrixrow 
+	//right shift as many times as the x value
 	mov rtemp3,rtemp2
 	ldi rtemp2, 0b1000_0000
 	shiftloop3:
@@ -456,23 +466,12 @@ moveHead:
 	subi rtemp3,1
 	jmp shiftloop3
 	doneWithMask3:
-	//bit mask for x in matrix row temp2
-	com rtemp2
-	and rtemp,rtemp2
-	com rtemp2
+	//bitmask for x in matrix row -> temp2
+	//set x bit as 1 in rtemp
 	or rtemp,rtemp2
-
+	//store the new byte in matrix
 	st Y, rTemp
-
-	//if length is 64 just return 
-	cpi rtemp6, 64
-	breq done
 	
-
-	
-	
-
-	 
 	 done:
 ret
 
